@@ -1,0 +1,7 @@
+{
+  "name": "Betting Site Analyzer",
+  "description": "Deep analysis, verification, and live testing of betting prediction sites, subscription models, and daily free tips.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
