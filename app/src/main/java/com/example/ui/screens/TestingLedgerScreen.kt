@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +68,8 @@ import com.example.data.model.PredictionStatus
 import com.example.data.model.SiteStats
 import com.example.ui.PredictionViewModel
 import com.example.ui.components.AddPredictionDialog
+import com.example.ui.components.HistoricalAccuracyChartCard
+import com.example.ui.components.MatchOutcomeResolutionBar
 import com.example.ui.theme.AmberVIP
 import com.example.ui.theme.CrimsonLoss
 import com.example.ui.theme.CyanOdds
@@ -96,6 +99,8 @@ fun TestingLedgerScreen(
             matchesStatus && matchesSite
         }
     }
+
+    val pendingCount = remember(predictions) { predictions.count { it.status == PredictionStatus.PENDING } }
 
     Scaffold(
         floatingActionButton = {
@@ -127,6 +132,11 @@ fun TestingLedgerScreen(
             // Overall KPI Header
             item {
                 OverallPerformanceCard(predictions = predictions)
+            }
+
+            // 30-Day Historical Accuracy Chart (Native Compose Canvas)
+            item {
+                HistoricalAccuracyChartCard(viewModel = viewModel)
             }
 
             // Site Comparison / Benchmarking Section ("Taste Which Site Delivers the Best")
@@ -188,6 +198,64 @@ fun TestingLedgerScreen(
                                 modifier = Modifier.size(18.dp)
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = "Clear site filter")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Quick settlement reminder for games awaiting outcome
+            if (pendingCount > 0) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, CyanOdds.copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("pending_outcomes_banner")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.HourglassEmpty,
+                                    contentDescription = null,
+                                    tint = CyanOdds,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "$pendingCount Game${if (pendingCount > 1) "s" else ""} Awaiting Match Outcome",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Mark 'Won' or 'Lost' on each below to build your local accuracy stats.",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (statusFilter != PredictionStatus.PENDING) {
+                                TextButton(
+                                    onClick = { viewModel.setStatusFilter(PredictionStatus.PENDING) },
+                                    modifier = Modifier.testTag("filter_pending_button")
+                                ) {
+                                    Text("Show (${pendingCount})", fontSize = 11.sp, color = CyanOdds, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -605,6 +673,31 @@ fun PredictionItemCard(
                             Text("Free Daily", color = EmeraldWin, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+
+                    val isTodayGame = prediction.siteName.contains("Today", ignoreCase = true) || prediction.notes.contains("Today", ignoreCase = true)
+                    val isTomorrowGame = prediction.siteName.contains("Tomorrow", ignoreCase = true) || prediction.notes.contains("Tomorrow", ignoreCase = true)
+
+                    if (isTodayGame) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(EmeraldWin.copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Text("⚡ TODAY", color = EmeraldWin, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    } else if (isTomorrowGame) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(CyanOdds.copy(alpha = 0.25f))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Text("📅 TOMORROW", color = CyanOdds, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                        }
+                    }
                 }
 
                 Text(prediction.date, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -662,70 +755,43 @@ fun PredictionItemCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider()
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Status resolution & action buttons
+            // Post-Match Outcome Resolution Component (Won / Lost / Push)
+            MatchOutcomeResolutionBar(
+                prediction = prediction,
+                onStatusChange = onStatusChange
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Secondary Actions: AI Evaluate & Delete
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Status buttons: Won, Lost, Void
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Won
-                    FilledTonalButton(
-                        onClick = { onStatusChange(PredictionStatus.WON) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = if (prediction.status == PredictionStatus.WON) EmeraldWin else EmeraldWin.copy(alpha = 0.15f),
-                            contentColor = if (prediction.status == PredictionStatus.WON) Color.White else EmeraldWin
-                        )
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Won", modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("Won", fontSize = 11.sp)
-                    }
-
-                    // Lost
-                    FilledTonalButton(
-                        onClick = { onStatusChange(PredictionStatus.LOST) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = if (prediction.status == PredictionStatus.LOST) CrimsonLoss else CrimsonLoss.copy(alpha = 0.15f),
-                            contentColor = if (prediction.status == PredictionStatus.LOST) Color.White else CrimsonLoss
-                        )
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Lost", modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text("Lost", fontSize = 11.sp)
-                    }
-
-                    // Void
-                    FilledTonalButton(
-                        onClick = { onStatusChange(PredictionStatus.VOID) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(
-                            containerColor = if (prediction.status == PredictionStatus.VOID) Color.Gray else Color.Gray.copy(alpha = 0.15f),
-                            contentColor = if (prediction.status == PredictionStatus.VOID) Color.White else Color.Gray
-                        )
-                    ) {
-                        Text("Void", fontSize = 11.sp)
-                    }
+                OutlinedButton(
+                    onClick = onAiEvaluate,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, CyanOdds.copy(alpha = 0.5f)),
+                    modifier = Modifier.testTag("ai_eval_button_${prediction.id}")
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = CyanOdds, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("AI Audit", fontSize = 11.sp, color = CyanOdds)
                 }
 
-                // AI Evaluate & Delete
-                Row {
-                    IconButton(onClick = onAiEvaluate, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI Evaluate", tint = CyanOdds, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = CrimsonLoss, modifier = Modifier.size(18.dp))
-                    }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("delete_prediction_button_${prediction.id}")
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete from Ledger", tint = CrimsonLoss, modifier = Modifier.size(18.dp))
                 }
             }
         }

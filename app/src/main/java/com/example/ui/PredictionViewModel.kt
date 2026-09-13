@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.local.BestPickNotificationDao
+import com.example.data.model.BestPickNotification
 import com.example.data.model.BetPrediction
 import com.example.data.model.PredictionSite
 import com.example.data.model.PredictionStatus
@@ -11,10 +13,13 @@ import com.example.data.model.SampleTip
 import com.example.data.model.SiteCategory
 import com.example.data.model.SiteStats
 import com.example.data.model.SportyBetPick
+import com.example.data.model.SiteAccuracyHistory
+import com.example.data.repository.HistoricalAccuracyData
 import com.example.data.remote.ChatMessage
 import com.example.data.remote.GeminiResult
 import com.example.data.remote.GeminiService
 import com.example.data.repository.PredictionRepository
+import com.example.service.FcmNotificationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,14 +33,68 @@ import java.util.Locale
 class PredictionViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: PredictionRepository
+    private val notificationDao: BestPickNotificationDao
     private val geminiService = GeminiService()
 
     init {
         val db = AppDatabase.getDatabase(application)
         repository = PredictionRepository(db.betPredictionDao())
+        notificationDao = db.bestPickNotificationDao()
+        
+        // Initialize FCM channels, token, and subscription
+        FcmNotificationManager.init(application)
+
         viewModelScope.launch {
             repository.initializeDefaultPredictionsIfEmpty()
         }
+    }
+
+    // FCM Notification Flows
+    val notifications: StateFlow<List<BestPickNotification>> = notificationDao.getAllNotifications()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val unreadNotificationCount: StateFlow<Int> = notificationDao.getUnreadCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val isPushNotificationsEnabled: StateFlow<Boolean> = FcmNotificationManager.notificationsEnabledFlow
+    val fcmToken: StateFlow<String> = FcmNotificationManager.fcmTokenFlow
+
+    fun markNotificationAsRead(id: Long) {
+        viewModelScope.launch {
+            notificationDao.markAsRead(id)
+        }
+    }
+
+    fun markAllNotificationsAsRead() {
+        viewModelScope.launch {
+            notificationDao.markAllAsRead()
+        }
+    }
+
+    fun clearAllNotifications() {
+        viewModelScope.launch {
+            notificationDao.clearAll()
+        }
+    }
+
+    fun setPushNotificationsEnabled(enabled: Boolean) {
+        FcmNotificationManager.setNotificationsEnabled(getApplication(), enabled)
+    }
+
+    fun triggerBestPickAlert(pick: SportyBetPick, isUpdate: Boolean = false) {
+        FcmNotificationManager.simulateIncomingBestPickAlert(
+            context = getApplication(),
+            pick = pick,
+            isUpdate = isUpdate
+        )
+    }
+
+    fun sendTestBestPickAlert(isUpdate: Boolean = false) {
+        FcmNotificationManager.simulateIncomingBestPickAlert(
+            context = getApplication(),
+            pick = null,
+            isUpdate = isUpdate
+        )
     }
 
     // Repository flows
@@ -58,6 +117,22 @@ class PredictionViewModel(application: Application) : AndroidViewModel(applicati
     // SportyBet Curated Today/Tomorrow Picks
     val sportyBetPicks: List<SportyBetPick> = repository.todayAndTomorrowSportyBetPicks
     val sportyBetDayFilter = MutableStateFlow("All") // "All", "Today", "Tomorrow"
+
+    // 30-Day Historical Accuracy Analytics
+    val siteHistories: List<SiteAccuracyHistory> = HistoricalAccuracyData.siteHistories
+    private val _selectedHistoricalSiteId = MutableStateFlow("all_aggregate")
+    val selectedHistoricalSiteId: StateFlow<String> = _selectedHistoricalSiteId.asStateFlow()
+
+    private val _chartViewMode = MutableStateFlow("trend") // "trend" (30-day curve) or "bars" (site comparison)
+    val chartViewMode: StateFlow<String> = _chartViewMode.asStateFlow()
+
+    fun selectHistoricalSite(siteId: String) {
+        _selectedHistoricalSiteId.value = siteId
+    }
+
+    fun setChartViewMode(mode: String) {
+        _chartViewMode.value = mode
+    }
 
     // Status filter in test ledger
     private val _statusFilter = MutableStateFlow<PredictionStatus?>(null)

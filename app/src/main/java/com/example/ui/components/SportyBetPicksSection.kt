@@ -16,26 +16,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,6 +79,9 @@ fun SportyBetPicksSection(
     var selectedPickForGuide by remember { mutableStateOf<SportyBetPick?>(null) }
     var showMarketCheatSheet by remember { mutableStateOf(false) }
 
+    val todayCount = viewModel.sportyBetPicks.count { it.scheduleDay == "Today" }
+    val tomorrowCount = viewModel.sportyBetPicks.count { it.scheduleDay == "Tomorrow" }
+
     val filteredPicks = viewModel.sportyBetPicks.filter { pick ->
         when (dayFilter) {
             "Today" -> pick.scheduleDay == "Today"
@@ -92,7 +96,7 @@ fun SportyBetPicksSection(
             .testTag("sportybet_picks_section"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.5.dp, EmeraldWin.copy(alpha = 0.5f))
+        border = BorderStroke(1.5.dp, EmeraldWin.copy(alpha = 0.6f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Header
@@ -104,7 +108,7 @@ fun SportyBetPicksSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
                             .background(EmeraldWin.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
@@ -113,19 +117,19 @@ fun SportyBetPicksSection(
                             Icons.Default.SportsSoccer,
                             contentDescription = null,
                             tint = EmeraldWin,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Best Picks (Today & Tomorrow)",
+                            text = "Best Picks (SportyBet Target)",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Curated algorithmic picks ready for SportyBet entry",
+                            text = "Audited picks with exact SportyBet inputs",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -134,7 +138,7 @@ fun SportyBetPicksSection(
 
                 IconButton(onClick = { showMarketCheatSheet = true }) {
                     Icon(
-                        Icons.Default.HelpOutline,
+                        Icons.Default.Info,
                         contentDescription = "SportyBet Cheat Sheet",
                         tint = CyanOdds
                     )
@@ -143,59 +147,266 @@ fun SportyBetPicksSection(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Subtitle description
             Text(
-                text = "These matches are calculated using Poisson goal expectancy and Poisson distribution models. Below each game is the exact SportyBet market name and selection so you can input them manually without confusion.",
+                text = "Easily differentiate matches playing Today vs advance value picks for Tomorrow. Tap any match to view the exact menu navigation path on SportyBet.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Filter Chips (All, Today, Tomorrow) + Cheat Sheet button
+            // FCM Push Notifications Quick Status Banner
+            val isPushActive by viewModel.isPushNotificationsEnabled.collectAsState()
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, if (isPushActive) EmeraldWin.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                modifier = Modifier.fillMaxWidth().testTag("fcm_picks_status_banner")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (isPushActive) EmeraldWin.copy(alpha = 0.2f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.NotificationsActive,
+                                contentDescription = null,
+                                tint = if (isPushActive) EmeraldWin else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (isPushActive) "FCM Best Pick Alerts Active" else "FCM Alerts Paused",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Topic: #best_picks • Push on new post or update",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.sendTestBestPickAlert(isUpdate = false)
+                            Toast.makeText(context, "🔥 Pushed Best Pick alert via FCM!", Toast.LENGTH_SHORT).show()
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, CyanOdds),
+                        modifier = Modifier.testTag("test_fcm_banner_button")
+                    ) {
+                        Text("Test Alert", fontSize = 11.sp, color = CyanOdds, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // REFACTORED: Large, Distinctive Day Filter Buttons (Today vs Tomorrow)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // "TODAY" Button
+                val isTodayActive = dayFilter == "Today"
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { viewModel.sportyBetDayFilter.value = "Today" }
+                        .testTag("filter_today_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isTodayActive) EmeraldWin.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    border = BorderStroke(
+                        if (isTodayActive) 2.dp else 1.dp,
+                        if (isTodayActive) EmeraldWin else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
                 ) {
-                    items(listOf("All", "Today", "Tomorrow")) { option ->
-                        FilterChip(
-                            selected = dayFilter == option,
-                            onClick = { viewModel.sportyBetDayFilter.value = option },
-                            label = { Text(option, fontSize = 12.sp) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp, horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (isTodayActive) EmeraldWin else Color.Gray)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (isTodayActive) EmeraldWin else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Today ($todayCount)",
+                            fontWeight = if (isTodayActive) FontWeight.ExtraBold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            color = if (isTodayActive) EmeraldWin else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                TextButton(
-                    onClick = { showMarketCheatSheet = true },
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                // "TOMORROW" Button
+                val isTomorrowActive = dayFilter == "Tomorrow"
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { viewModel.sportyBetDayFilter.value = "Tomorrow" }
+                        .testTag("filter_tomorrow_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isTomorrowActive) CyanOdds.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    border = BorderStroke(
+                        if (isTomorrowActive) 2.dp else 1.dp,
+                        if (isTomorrowActive) CyanOdds else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
                 ) {
-                    Icon(Icons.Default.TouchApp, contentDescription = null, modifier = Modifier.size(14.dp), tint = CyanOdds)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("SportyBet Cheat Sheet", fontSize = 11.sp, color = CyanOdds, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp, horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Event,
+                            contentDescription = null,
+                            tint = if (isTomorrowActive) CyanOdds else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Tomorrow ($tomorrowCount)",
+                            fontWeight = if (isTomorrowActive) FontWeight.ExtraBold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            color = if (isTomorrowActive) CyanOdds else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // "ALL" Button
+                val isAllActive = dayFilter == "All"
+                Card(
+                    modifier = Modifier
+                        .clickable { viewModel.sportyBetDayFilter.value = "All" }
+                        .testTag("filter_all_days_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isAllActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    border = BorderStroke(
+                        if (isAllActive) 1.5.dp else 1.dp,
+                        if (isAllActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "All",
+                            fontWeight = if (isAllActive) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 13.sp,
+                            color = if (isAllActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Sub-banner describing active day
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        when (dayFilter) {
+                            "Today" -> EmeraldWin.copy(alpha = 0.12f)
+                            "Tomorrow" -> CyanOdds.copy(alpha = 0.12f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        }
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = when (dayFilter) {
+                            "Today" -> Icons.Default.Bolt
+                            "Tomorrow" -> Icons.Default.Event
+                            else -> Icons.Default.Schedule
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = when (dayFilter) {
+                            "Today" -> EmeraldWin
+                            "Tomorrow" -> CyanOdds
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = when (dayFilter) {
+                            "Today" -> "Showing $todayCount games for TODAY. Enter them into SportyBet now before kickoff."
+                            "Tomorrow" -> "Showing $tomorrowCount advance games for TOMORROW. Good for early high-odds value."
+                            else -> "Showing all $todayCount Today and $tomorrowCount Tomorrow picks side by side."
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // List of Picks
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 filteredPicks.forEach { pick ->
                     SportyBetPickItemCard(
                         pick = pick,
                         onAddToLedger = {
                             viewModel.addSportyBetPickToTestingLedger(pick)
-                            Toast.makeText(context, "Added '${pick.match}' to your Testing Ledger!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Added '${pick.match}' (${pick.scheduleDay}) to Testing Ledger!", Toast.LENGTH_SHORT).show()
                         },
                         onOpenGuide = { selectedPickForGuide = pick },
                         onCopy = {
-                            val copyText = "Match: ${pick.match}\nLeague: ${pick.league}\nSportyBet Market: ${pick.sportyBetMarketName}\nSelection: ${pick.sportyBetSelection}\nOdds: ${pick.estimatedOdds}"
+                            val copyText = "Day: ${pick.scheduleDay.uppercase(Locale.ROOT)}\nMatch: ${pick.match}\nLeague: ${pick.league}\nSportyBet Market: ${pick.sportyBetMarketName}\nSelection: ${pick.sportyBetSelection}\nOdds: ${pick.estimatedOdds}"
                             clipboardManager.setText(AnnotatedString(copyText))
                             Toast.makeText(context, "Copied SportyBet pick to clipboard!", Toast.LENGTH_SHORT).show()
+                        },
+                        onPushAlert = {
+                            viewModel.triggerBestPickAlert(pick, isUpdate = false)
+                            Toast.makeText(context, "🔥 Sent Best Pick FCM Alert for ${pick.match}!", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -205,36 +416,76 @@ fun SportyBetPicksSection(
 
     // SportyBet Step-by-Step Guide Dialog
     selectedPickForGuide?.let { pick ->
+        val isToday = pick.scheduleDay == "Today"
         AlertDialog(
             onDismissRequest = { selectedPickForGuide = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.TouchApp, contentDescription = null, tint = EmeraldWin)
+                    Icon(
+                        if (isToday) Icons.Default.Bolt else Icons.Default.Event,
+                        contentDescription = null,
+                        tint = if (isToday) EmeraldWin else CyanOdds
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("How to input on SportyBet", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Input on SportyBet (${pick.scheduleDay})",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Match: ${pick.match}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("League: ${pick.country} - ${pick.league}", fontSize = 13.sp)
-                    Text("Schedule: ${pick.scheduleDay} @ ${pick.kickOffTime}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (isToday) EmeraldWin.copy(alpha = 0.2f) else CyanOdds.copy(alpha = 0.2f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = if (isToday) "⚡ PLAY TODAY" else "📅 TOMORROW",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isToday) EmeraldWin else CyanOdds
+                            )
+                        }
+
+                        Text(
+                            text = "Kickoff: ${pick.kickOffTime}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Text("Match: ${pick.match}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("League: ${pick.country} - ${pick.league}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                        shape = RoundedCornerShape(8.dp)
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isToday) EmeraldWin.copy(alpha = 0.15f) else CyanOdds.copy(alpha = 0.15f)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (isToday) EmeraldWin.copy(alpha = 0.5f) else CyanOdds.copy(alpha = 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
                             Text("SportyBet Market: ${pick.sportyBetMarketName}", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("Tap Selection: ${pick.sportyBetSelection}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = EmeraldWin)
-                            Text("Estimated Odds: ${pick.estimatedOdds}", fontSize = 12.sp)
+                            Text("Tap Selection: ${pick.sportyBetSelection}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if (isToday) EmeraldWin else CyanOdds)
+                            Text("Estimated Odds: ${pick.estimatedOdds}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Step-by-step Navigation:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Navigation steps on SportyBet:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Text(
                         text = pick.stepByStepSportyBetGuide,
                         fontSize = 12.sp,
@@ -250,7 +501,7 @@ fun SportyBetPicksSection(
                         Toast.makeText(context, "Added to Testing Ledger!", Toast.LENGTH_SHORT).show()
                         selectedPickForGuide = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldWin)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isToday) EmeraldWin else CyanOdds)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -271,7 +522,7 @@ fun SportyBetPicksSection(
             onDismissRequest = { showMarketCheatSheet = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.HelpOutline, contentDescription = null, tint = CyanOdds)
+                    Icon(Icons.Default.Info, contentDescription = null, tint = CyanOdds)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("SportyBet Market Cheat Sheet", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -320,80 +571,113 @@ fun SportyBetPickItemCard(
     pick: SportyBetPick,
     onAddToLedger: () -> Unit,
     onOpenGuide: () -> Unit,
-    onCopy: () -> Unit
+    onCopy: () -> Unit,
+    onPushAlert: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val isToday = pick.scheduleDay == "Today"
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("pick_card_${pick.id}"),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            containerColor = if (isToday) EmeraldWin.copy(alpha = 0.07f) else CyanOdds.copy(alpha = 0.05f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(
+            if (isToday) 2.dp else 1.8.dp,
+            if (isToday) EmeraldWin.copy(alpha = 0.8f) else CyanOdds.copy(alpha = 0.7f)
+        )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Day badge + League + Time
+            // HIGH-VISIBILITY DAY BADGE BANNER
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isToday) EmeraldWin.copy(alpha = 0.2f) else CyanOdds.copy(alpha = 0.18f)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 5.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .background(
-                                if (pick.scheduleDay == "Today") EmeraldWin.copy(alpha = 0.2f) else AmberVIP.copy(alpha = 0.2f),
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = pick.scheduleDay.uppercase(Locale.ROOT),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (pick.scheduleDay == "Today") EmeraldWin else AmberVIP
-                        )
-                    }
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isToday) EmeraldWin else CyanOdds)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = if (isToday) Icons.Default.Bolt else Icons.Default.Event,
+                        contentDescription = null,
+                        tint = if (isToday) EmeraldWin else CyanOdds,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${pick.country} • ${pick.league}",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (isToday) "● PLAY TODAY" else "📅 TOMORROW'S GAME",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isToday) EmeraldWin else CyanOdds
                     )
                 }
 
-                Text(
-                    text = pick.kickOffTime,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "${pick.scheduleDay} @ ${pick.kickOffTime}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Match Title
-            Text(
-                text = pick.match,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            // Match Title & League
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pick.match,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "${pick.country} • ${pick.league}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // SportyBet Specific Translation Box
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, CyanOdds.copy(alpha = 0.3f))
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, (if (isToday) EmeraldWin else CyanOdds).copy(alpha = 0.4f))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -411,23 +695,26 @@ fun SportyBetPickItemCard(
                             )
                             Text(
                                 text = pick.sportyBetSelection,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = EmeraldWin
+                                color = if (isToday) EmeraldWin else CyanOdds
                             )
                         }
                     }
 
                     Box(
                         modifier = Modifier
-                            .background(CyanOdds.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .background(
+                                (if (isToday) EmeraldWin else CyanOdds).copy(alpha = 0.18f),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = "@ ${pick.estimatedOdds}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = CyanOdds
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp,
+                            color = if (isToday) EmeraldWin else CyanOdds
                         )
                     }
                 }
@@ -450,7 +737,7 @@ fun SportyBetPickItemCard(
                     text = pick.confidenceLevel,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = EmeraldWin
+                    color = if (isToday) EmeraldWin else CyanOdds
                 )
             }
 
@@ -465,7 +752,12 @@ fun SportyBetPickItemCard(
                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                         .padding(10.dp)
                 ) {
-                    Text("How to input on SportyBet:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = CyanOdds)
+                    Text(
+                        text = "Step-by-step SportyBet Guide (${pick.scheduleDay}):",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = if (isToday) EmeraldWin else CyanOdds
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = pick.stepByStepSportyBetGuide,
@@ -500,7 +792,9 @@ fun SportyBetPickItemCard(
                     onClick = onAddToLedger,
                     modifier = Modifier.weight(1.3f),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldWin),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isToday) EmeraldWin else CyanOdds
+                    ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -513,6 +807,18 @@ fun SportyBetPickItemCard(
                     modifier = Modifier.size(34.dp)
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy Pick", modifier = Modifier.size(16.dp))
+                }
+
+                IconButton(
+                    onClick = onPushAlert,
+                    modifier = Modifier.size(34.dp).testTag("alert_pick_button_${pick.id}")
+                ) {
+                    Icon(
+                        Icons.Default.NotificationsActive,
+                        contentDescription = "Send FCM Alert for Pick",
+                        tint = if (isToday) EmeraldWin else CyanOdds,
+                        modifier = Modifier.size(17.dp)
+                    )
                 }
             }
         }
